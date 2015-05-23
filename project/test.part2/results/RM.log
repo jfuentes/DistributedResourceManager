@@ -1,0 +1,20 @@
+The Master DB deserialized failed.
+initCurrentDB
+Deserilize Table  = Reservaction, sLoc = data/Reservaction-1.rms
+Deserilize Table  = Car, sLoc = data/Car-1.rms
+Deserilize Table  = Flight, sLoc = data/Flight-1.rms
+Deserilize Table  = Hotel, sLoc = data/Hotel-1.rms
+RM not bound:java.rmi.ConnectException: Connection refused to host: apple.ics.uci.edu; nested exception is: 
+	java.net.ConnectException: Connection refused
+Deserilize Table  = Hotel, sLoc = data/Hotel-1.rms
+Deserilize Table  = Car, sLoc = data/Car-1.rms
+Deserilize Table  = Flight, sLoc = data/Flight-1.rms
+Deserilize Table  = Reservaction, sLoc = data/Reservaction-1.rms
+RM not bound:java.rmi.ConnectException: Connection refused to host: apple.ics.uci.edu; nested exception is: 
+	java.net.ConnectException: Connection refused
+Deserilize Table  = Hotel, sLoc = data/Hotel-1.rms
+Deserilize Table  = Car, sLoc = data/Car-1.rms
+Deserilize Table  = Flight, sLoc = data/Flight-1.rms
+Deserilize Table  = Reservaction, sLoc = data/Reservaction-1.rms
+RM not bound:java.rmi.ConnectException: Connection refused to host: apple.ics.uci.edu; nested exception is: 
+	java.net.ConnectException: Connection refused
