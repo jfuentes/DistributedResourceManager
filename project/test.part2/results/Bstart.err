@@ -1,2 +1,0 @@
-Cannot bind to RM: java.rmi.ConnectException: Connection refused to host: apple.ics.uci.edu; nested exception is: 
-	java.net.ConnectException: Connection refused
