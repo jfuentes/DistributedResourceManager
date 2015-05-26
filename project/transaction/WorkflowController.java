@@ -177,7 +177,7 @@ public interface WorkflowController extends Remote {
     public boolean deleteCars(int xid, String location, int numCars)
 	throws RemoteException,
 	       TransactionAbortedException,
-	       InvalidTransactionException; 
+	       InvalidTransactionException;
 
     /**
      * Add a new customer to database.  Should return success if
@@ -335,7 +335,7 @@ public interface WorkflowController extends Remote {
      *
      * @return true on success, false on failure. (some component not up yet...)
      */
-    public boolean reconnect() 
+    public boolean reconnect()
 	throws RemoteException;
     /**
      * Kill the component immediately.  Used to simulate a system

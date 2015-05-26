@@ -15,7 +15,7 @@ public class WorkflowControllerImpl
 extends java.rmi.server.UnicastRemoteObject
 implements WorkflowController {
    protected int flightcounter, flightprice, carscounter, carsprice, roomscounter, roomsprice;
-protected int xidCounter;
+   protected int xidCounter;
 
 
    protected ResourceManager rmFlights = null;
@@ -51,14 +51,19 @@ protected int xidCounter;
 
       while (!reconnect()) {
          // would be better to sleep a while
+         try {
+            Thread.sleep(1000);
+         } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+         }
       }
    }
 
-   
+
    // TRANSACTION INTERFACE
    public int start()
    throws RemoteException {
-      return (xidCounter++);
+      return tm.start();
    }
 
    public boolean commit(int xid)
@@ -66,12 +71,13 @@ protected int xidCounter;
    TransactionAbortedException,
    InvalidTransactionException {
       System.out.println("Committing");
-      return true;
+      return tm.commit(xid);
    }
 
    public void abort(int xid)
    throws RemoteException,
    InvalidTransactionException {
+      tm.abort(xid);
       return;
    }
 
@@ -81,68 +87,56 @@ protected int xidCounter;
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      flightcounter += numSeats;
-      flightprice = price;
-      return true;
+      return rmFlights.addFlight(xid, flightNum, numSeats, price);
    }
 
    public boolean deleteFlight(int xid, String flightNum)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      flightcounter = 0;
-      flightprice = 0;
-      return true;
+      return rmFlights.deleteFlight(xid, flightNum);
    }
 
    public boolean addRooms(int xid, String location, int numRooms, int price)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      roomscounter += numRooms;
-      roomsprice = price;
-      return true;
+      return rmRooms.addRooms(xid, location, numRooms, price);
    }
 
    public boolean deleteRooms(int xid, String location, int numRooms)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      roomscounter = 0;
-      roomsprice = 0;
-      return true;
+      return rmRooms.deleteRooms(xid, location, numRooms);
    }
 
    public boolean addCars(int xid, String location, int numCars, int price)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      carscounter += numCars;
-      carsprice = price;
-      return true;
+      return rmCars.addCars(xid, location, numCars, price);
    }
 
    public boolean deleteCars(int xid, String location, int numCars)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      carscounter = 0;
-      carsprice = 0;
-      return true;
+      return rmCars.deleteCars(xid, location, numCars);
    }
 
    public boolean newCustomer(int xid, String custName)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return true;
+      return rmCustomers.newCustomer(xid, custName);
    }
 
    public boolean deleteCustomer(int xid, String custName)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return true;
+      return rmCustomers.deleteCustomer(xid, custName);
    }
 
 
@@ -151,49 +145,49 @@ protected int xidCounter;
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return flightcounter;
+      return rmFlights.queryFlight(xid, flightNum);
    }
 
    public int queryFlightPrice(int xid, String flightNum)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return flightprice;
+      return rmFlights.queryFlightPrice(xid, flightNum);
    }
 
    public int queryRooms(int xid, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return roomscounter;
+      return rmRooms.queryRooms(xid, location);
    }
 
    public int queryRoomsPrice(int xid, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return roomsprice;
+      return rmRooms.queryRoomsPrice(xid, location);
    }
 
    public int queryCars(int xid, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return carscounter;
+      return rmCars.queryCars(xid, location);
    }
 
    public int queryCarsPrice(int xid, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return carsprice;
+      return rmCars.queryCarsPrice(xid, location);
    }
 
    public int queryCustomerBill(int xid, String custName)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      return 0;
+      return rmCustomers.queryCustomerBill(xid, custName);
    }
 
 
@@ -202,30 +196,50 @@ protected int xidCounter;
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      flightcounter--;
-      return true;
+      return rmFlights.reserveFlight(xid, custName, flightNum);
    }
 
    public boolean reserveCar(int xid, String custName, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      carscounter--;
-      return true;
+      return rmCars.reserveCar(xid, custName, location);
    }
 
    public boolean reserveRoom(int xid, String custName, String location)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
-      roomscounter--;
-      return true;
+      return rmRooms.reserveRoom(xid, custName, location);
    }
 
    public boolean reserveItinerary(int xid, String custName, List flightNumList, String location, boolean needCar, boolean needRoom)
    throws RemoteException,
    TransactionAbortedException,
    InvalidTransactionException {
+      for(int i=0; i< flightNumList.size(); i++){
+         String s= (String) flightNumList.get(i);
+         if(!rmFlights.reserveFlight(xid, custName, s)){
+            rmFlights.abort(xid);
+            return false;
+         }
+      }
+      if(needCar){
+         if(!rmCars.reserveCar(xid, custName, location)){
+            rmFlights.abort(xid);
+            rmCars.abort(xid);
+            return false;
+         }
+      }
+      if(needRoom){
+         if(!rmRooms.reserveRoom(xid, custName, location)){
+            rmFlights.abort(xid);
+            if(needCar) rmCars.abort(xid);
+            rmRooms.abort(xid);
+            return false;
+         }
+      }
+
       return true;
    }
 

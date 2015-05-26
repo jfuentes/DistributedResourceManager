@@ -23,3 +23,7 @@ For each test your code failed, we have listed the points deducted and the most 
 
 ============================================
 Your final score is 100/100
+For each test your code failed, we have listed the points deducted and the most likely reason:
+
+============================================
+Your final score is 100/100

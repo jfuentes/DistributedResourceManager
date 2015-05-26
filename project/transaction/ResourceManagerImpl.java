@@ -36,32 +36,7 @@ implements ResourceManager {
    protected String myRMIName = null; // Used to distinguish this RM from other RMs
    protected TransactionManager tm = null;
 
-   public static void main(String args[]) {
-      System.setSecurityManager(new RMISecurityManager());
 
-      String rmiName = System.getProperty("rmiName");
-      if (rmiName == null || rmiName.equals("")) {
-         System.err.println("No RMI name given");
-         System.exit(1);
-      }
-
-      String rmiPort = System.getProperty("rmiPort");
-      if (rmiPort == null) {
-         rmiPort = "";
-      } else if (!rmiPort.equals("")) {
-         rmiPort = "//:" + rmiPort + "/";
-      }
-
-      try {
-         ResourceManagerImpl obj = new ResourceManagerImpl(rmiName);
-         Naming.rebind(rmiPort + rmiName, obj);
-         System.out.println(rmiName + " bound");
-      }
-      catch (Exception e) {
-         System.err.println(rmiName + " not bound:" + e);
-         System.exit(1);
-      }
-   }
 
 
 
@@ -119,16 +94,52 @@ implements ResourceManager {
    private boolean dieBeforeSwitch=false;
    private boolean dieAfterSwitch=false;
 
+
+
+   public static void main(String args[]) {
+      System.setSecurityManager(new RMISecurityManager());
+
+      String rmiName = System.getProperty("rmiName");
+      if (rmiName == null || rmiName.equals("")) {
+         System.err.println("No RMI name given");
+         System.exit(1);
+      }
+
+      String rmiPort = System.getProperty("rmiPort");
+      if (rmiPort == null) {
+         rmiPort = "";
+      } else if (!rmiPort.equals("")) {
+         rmiPort = "//:" + rmiPort + "/";
+      }
+
+      try {
+         ResourceManagerImpl obj = new ResourceManagerImpl(rmiName);
+         Naming.rebind(rmiPort + rmiName, obj);
+         System.out.println(rmiName + " bound");
+      }
+      catch (Exception e) {
+         System.err.println(rmiName + " not bound:" + e);
+         System.exit(1);
+      }
+   }
+
    public ResourceManagerImpl(String rmiName) throws RemoteException {
       myRMIName = rmiName;
 
       while (!reconnect()) {
          // would be better to sleep a while
+         try {
+            Thread.sleep(1000);
+         } catch(InterruptedException ex) {
+            Thread.currentThread().interrupt();
+         }
       }
 
       checkDirectoryDB();
-      recover();  //recover db
-
+      if(!recover()){  //recover db
+         System.out.println("There is an error recovering the DB");
+         System.exit(1);
+      }
       activeTransactions = new HashMap<Integer, ArrayList<OperationPair>>();
       abortedTransactions = new HashSet<Integer>();
 
@@ -200,7 +211,7 @@ private void checkDirectoryDB(){
 private boolean recover(){
 
    //flights
-   if(myRMIName==RMINameFlights){
+   if(myRMIName.equals(RMINameFlights)){
       File file = new File(RMINameFlights_DB);
 
       try{
@@ -245,7 +256,7 @@ private boolean recover(){
          ioe.printStackTrace();
          return false;
       }
-   }else if(myRMIName==RMINameCars){
+   }else if(myRMIName.equals(RMINameCars)){
 
 
       //cars
@@ -297,7 +308,7 @@ private boolean recover(){
          return false;
       }
 
-   }else if(myRMIName==RMINameRooms){
+   }else if(myRMIName.equals(RMINameRooms)){
 
       //hotels
       File file = new File(RMINameRooms_DB);
@@ -348,7 +359,7 @@ private boolean recover(){
          return false;
       }
 
-   }else if(myRMIName==RMINameCustomers){
+   }else if(myRMIName.equals(RMINameCustomers)){
       //reservations
       File file = new File(RMINameCustomers_DB);
 
@@ -429,11 +440,14 @@ throws RemoteException {
 }
 
 public void checkTransactionID(int xid) throws RemoteException, InvalidTransactionException, TransactionAbortedException{
-   if(!activeTransactions.containsKey(xid) && activeTransactions.size()==0){
+   /*if(!activeTransactions.containsKey(xid) && activeTransactions.size()==0){
       throw new TransactionAbortedException(xid, "xid transaction aborted previously");
    }else  if(!activeTransactions.containsKey(xid)){
       throw new InvalidTransactionException(xid, "xid transaction invalid");
-   }
+   }*/
+
+   if(!activeTransactions.containsKey(xid))
+      activeTransactions.put(xid, new ArrayList<OperationPair>());
 
 }
 
@@ -587,7 +601,7 @@ InvalidTransactionException {
 
 public void updateTransactionsOnDisk(){
    try{
-      if(myRMIName==RMINameFlights){
+      if(myRMIName.equals(RMINameFlights)){
          File file = new File(Flights_TRANSACTIONS_DB);
          if(!file.exists()) {
             file.createNewFile();
@@ -596,7 +610,7 @@ public void updateTransactionsOnDisk(){
          ObjectOutputStream oos = new ObjectOutputStream(fout);
          oos.writeObject(activeTransactions);
          oos.close();
-      }else if(myRMIName==RMINameCars){
+      }else if(myRMIName.equals(RMINameCars)){
          File file = new File(Cars_TRANSACTIONS_DB);
          if(!file.exists()) {
             file.createNewFile();
@@ -605,7 +619,7 @@ public void updateTransactionsOnDisk(){
          ObjectOutputStream oos = new ObjectOutputStream(fout);
          oos.writeObject(activeTransactions);
          oos.close();
-      }else if(myRMIName==RMINameRooms){
+      }else if(myRMIName.equals(RMINameRooms)){
          File file = new File(Rooms_TRANSACTIONS_DB);
          if(!file.exists()) {
             file.createNewFile();
@@ -614,7 +628,7 @@ public void updateTransactionsOnDisk(){
          ObjectOutputStream oos = new ObjectOutputStream(fout);
          oos.writeObject(activeTransactions);
          oos.close();
-      }else if(myRMIName==RMINameCustomers){
+      }else if(myRMIName.equals(RMINameCustomers)){
          File file = new File(Customers_TRANSACTIONS_DB);
          if(!file.exists()) {
             file.createNewFile();
@@ -633,7 +647,7 @@ public void updateTransactionsOnDisk(){
 private void updateTableOnDisk(String table){
    String currentDir = System.getProperty("user.dir");
    System.out.println("Current dir using System:" +currentDir);
-   if(table==RMINameFlights){
+   if(table.equals(RMINameFlights)){
       try{
          //non-active
          File file = new File(RMINameFlights_DB);
@@ -657,7 +671,7 @@ private void updateTableOnDisk(String table){
       }catch(Exception ex){
          ex.printStackTrace();
       }
-   }else if(table==RMINameCars){
+   }else if(table.equals(RMINameCars)){
       try{
          //non-active
          File file = new File(RMINameCars_DB);
@@ -681,7 +695,7 @@ private void updateTableOnDisk(String table){
       }catch(Exception ex){
          ex.printStackTrace();
       }
-   }else if(table==RMINameRooms){
+   }else if(table.equals(RMINameRooms)){
       try{
          //non-active
          File file = new File(RMINameRooms_DB);
@@ -705,7 +719,7 @@ private void updateTableOnDisk(String table){
       }catch(Exception ex){
          ex.printStackTrace();
       }
-   }else if(table==RMINameCustomers){
+   }else if(table.equals(RMINameCustomers)){
       try{
          //non-active
          File file = new File(RMINameCustomers_DB);
@@ -764,6 +778,8 @@ throws RemoteException, TransactionAbortedException, InvalidTransactionException
    operations.add(new OperationPair(RMINameFlights, flightNum));
    activeTransactions.put(xid, operations);
 
+   //TM needs also to keep track
+   tm.enlist(xid, RMINameFlights);
 
    return true;
 }
@@ -805,6 +821,8 @@ InvalidTransactionException {
    operations.add(new OperationPair(RMINameFlights, flightNum));
    activeTransactions.put(xid, operations);
 
+   //TM needs also to keep track
+   tm.enlist(xid, RMINameFlights);
 
    return true;
 }
@@ -840,6 +858,9 @@ InvalidTransactionException {
    operations.add(new OperationPair(RMINameRooms, location));
    activeTransactions.put(xid, operations);
 
+   //TM needs also to keep track
+   tm.enlist(xid, RMINameRooms);
+
    return true;
 }
 
@@ -870,7 +891,12 @@ InvalidTransactionException {
       ArrayList<OperationPair> operations = activeTransactions.get(xid);
       operations.add(new OperationPair(RMINameRooms, location));
       activeTransactions.put(xid, operations);
+
+      //TM needs also to keep track
+      tm.enlist(xid, RMINameRooms);
+
       return true;
+
    }else
    return false;
 }
@@ -905,6 +931,9 @@ InvalidTransactionException {
    operations.add(new OperationPair(RMINameCars, location));
    activeTransactions.put(xid, operations);
 
+   //TM needs also to keep track
+   tm.enlist(xid, RMINameCars);
+
    return true;
 }
 
@@ -935,6 +964,10 @@ InvalidTransactionException {
       ArrayList<OperationPair> operations = activeTransactions.get(xid);
       operations.add(new OperationPair(RMINameCars, location));
       activeTransactions.put(xid, operations);
+
+      //TM needs also to keep track
+      tm.enlist(xid, RMINameCars);
+
       return true;
    }else
    return false;
@@ -968,6 +1001,10 @@ InvalidTransactionException {
       ArrayList<OperationPair> operations = activeTransactions.get(xid);
       operations.add(new OperationPair(RMINameCustomers, custName));
       activeTransactions.put(xid, operations);
+
+      //TM needs also to keep track
+      tm.enlist(xid, RMINameCustomers);
+
       return true;
    }else
    return false;
@@ -977,7 +1014,7 @@ public boolean deleteCustomer(int xid, String custName)
 throws RemoteException,
 TransactionAbortedException,
 InvalidTransactionException {
-   if(!checkRmiName(RMINameCustomers) && !checkRmiName(RMINameCustomers))
+   if(!checkRmiName(RMINameCustomers))
    throw new TransactionAbortedException(xid, "Access to invalid component");
 
    checkTransactionID(xid);
@@ -1015,6 +1052,7 @@ InvalidTransactionException {
 
          actFlights.cancelReservation(pair.getResvKey());
          operations.add(new OperationPair(RMINameFlights, pair.getResvKey()));
+         tm.enlist(xid, RMINameFlights);
       }else if(pair.getResvType()==Reservations.RMINameRooms_TYPE){
          try{
             if(!lm.lock(xid, RMINameRooms + pair.getResvKey(), LockManager.WRITE)){
@@ -1029,6 +1067,8 @@ InvalidTransactionException {
 
          actHotels.cancelReservation(pair.getResvKey());
          operations.add(new OperationPair(RMINameRooms, pair.getResvKey()));
+         //TM needs also to keep track
+         tm.enlist(xid, RMINameRooms);
       }else if(pair.getResvType()==Reservations.RMINameCars_TYPE){
          try{
             if(!lm.lock(xid, RMINameCars + pair.getResvKey(), LockManager.WRITE)){
@@ -1043,6 +1083,8 @@ InvalidTransactionException {
 
          actCars.cancelReservation(pair.getResvKey());
          operations.add(new OperationPair(RMINameCars, pair.getResvKey()));
+         //TM needs also to keep track
+         tm.enlist(xid, RMINameCars);
       }
 
 
@@ -1053,6 +1095,8 @@ InvalidTransactionException {
       //keep tracking of operations
       operations.add(new OperationPair(RMINameCustomers, custName));
       activeTransactions.put(xid, operations);
+      //TM needs also to keep track
+      tm.enlist(xid, RMINameCustomers);
       return true;
    }else
    return false;
@@ -1395,11 +1439,10 @@ InvalidTransactionException {
    }
 
    if(actFlights.reserveSeat(flightNum, 1)){
-      if(actReservations.addReservation(custName, Reservations.RMINameFlights_TYPE, flightNum)){
+      if(tm.addCustomerReservation(xid, custName, Reservations.RMINameFlights_TYPE, flightNum)){
          //keep tracking of operations
          ArrayList<OperationPair> operations = activeTransactions.get(xid);
          operations.add(new OperationPair(RMINameFlights, flightNum));
-         operations.add(new OperationPair(RMINameCustomers, custName));
          activeTransactions.put(xid, operations);
 
          return true;
@@ -1450,11 +1493,10 @@ InvalidTransactionException {
    }
 
    if(actCars.reserveCar(location, 1)){
-      if(actReservations.addReservation(custName, Reservations.RMINameCars_TYPE, location)){
+      if(tm.addCustomerReservation(xid, custName, Reservations.RMINameCars_TYPE, location)){
          //keep tracking of operations
          ArrayList<OperationPair> operations = activeTransactions.get(xid);
          operations.add(new OperationPair(RMINameCars, location));
-         operations.add(new OperationPair(RMINameCustomers, custName));
          activeTransactions.put(xid, operations);
          return true;
       }
@@ -1507,11 +1549,10 @@ InvalidTransactionException {
    }
 
    if(actHotels.reserveRoom(location, 1)){
-      if(actReservations.addReservation(custName, Reservations.RMINameRooms_TYPE, location)){
+      if(tm.addCustomerReservation(xid, custName, Reservations.RMINameRooms_TYPE, location)){
          //keep tracking of operations
          ArrayList<OperationPair> operations = activeTransactions.get(xid);
          operations.add(new OperationPair(RMINameRooms, location));
-         operations.add(new OperationPair(RMINameCustomers, custName));
          activeTransactions.put(xid, operations);
          return true;
       }
@@ -1567,9 +1608,23 @@ private boolean waitForShutDown(){
 
 
 private boolean checkRmiName(String operation){
-   if(rmiName.equals(ResourceManager.DefaultRMIName) || rmiName.equals(operation))
+   if(myRMIName.equals(ResourceManager.DefaultRMIName) || myRMIName.equals(operation))
    return true;
    else return false;
+}
+
+public boolean addCustomerReservation(int xid, String custName, int type, String key)throws TransactionAbortedException, RemoteException, InvalidTransactionException{
+   if(!checkRmiName(RMINameCustomers))
+   throw new TransactionAbortedException(xid, "Access to invalid component");
+
+   checkTransactionID(xid);
+
+   ArrayList<OperationPair> operations = activeTransactions.get(xid);
+   operations.add(new OperationPair(RMINameCustomers, custName));
+
+   return actReservations.addReservation(custName, type, key);
+
+
 }
 
 public String toStringNonActiveDB(String nameTable){

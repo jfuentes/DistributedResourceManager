@@ -351,7 +351,8 @@ public interface ResourceManager extends Remote {
      */
     public boolean dieAfterPointerSwitch()
 	throws RemoteException;
-
+   
+   public boolean addCustomerReservation(int xid, String custName, int type, String key)throws TransactionAbortedException, RemoteException, InvalidTransactionException;
 
 
 
