@@ -1,3 +1,6 @@
+#Distributed Resource Manager
+
+This is a Distributed Resource Manager that supports concurrent transactions with ACID properties.
 
 Instructions:
 
@@ -8,7 +11,7 @@ cp -r ../../submissions/* ../transaction
 rm -r ../transaction/Client.java
 cp -f Client.java ../transaction/
 
-cd ../lockmgr 
+cd ../lockmgr
 make
 
 cd ../transaction
