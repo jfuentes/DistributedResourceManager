@@ -1,4 +1,4 @@
-#Distributed Resource Manager
+Distributed Resource Manager
 
 This is a Distributed Resource Manager that supports concurrent transactions with ACID properties.
 
